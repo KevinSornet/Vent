@@ -447,6 +447,27 @@ body::before {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--purple-light); border-radius: 3px; }
 
+/* ══ HEATMAP TOGGLE ══ */
+.hm-toggle {
+  display: flex; gap: 2px;
+  background: var(--off-white); border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px;
+}
+.hm-tog {
+  padding: 3px 10px; border-radius: 6px; border: none; background: transparent;
+  font-family: 'DM Sans', sans-serif; font-size: 0.68rem; color: var(--ink-muted);
+  cursor: pointer; transition: all 0.15s;
+}
+.hm-tog.active { background: white; color: var(--purple); font-weight: 500; box-shadow: 0 1px 3px var(--shadow); }
+.hm-month-nav {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.hm-month-nav .month-label {
+  font-size: 0.8rem; font-weight: 500; color: var(--ink-soft);
+  font-family: 'Cormorant Garamond', serif; font-size: 1rem;
+  min-width: 120px; text-align: center;
+}
+
 /* spinning util */
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.9s linear infinite; display: inline-block; }
@@ -491,8 +512,14 @@ body::before {
       <div class="stat-card"><div class="stat-val" id="s-habits">0</div><div class="stat-lbl">Habits</div></div>
     </div>
     <div class="heatmap-wrap">
-      <div class="hm-title">Mood this year</div>
-      <div class="hm-sub">Daily mood score (1–10) · hover for details</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="hm-title">Mood this year</div>
+        <div class="hm-toggle" id="toggle-mood-ov">
+          <button class="hm-tog active" onclick="setHMView('mood-ov','year',this)">Year</button>
+          <button class="hm-tog" onclick="setHMView('mood-ov','month',this)">Month</button>
+        </div>
+      </div>
+      <div class="hm-sub" id="sub-mood-ov">Daily mood score (1–10) · hover for details</div>
       <div id="hm-mood-ov"></div>
       <div class="hm-legend">
         <span>😔</span>
@@ -508,8 +535,14 @@ body::before {
       </div>
     </div>
     <div class="heatmap-wrap">
-      <div class="hm-title">Habit consistency</div>
-      <div class="hm-sub">% of habits completed daily</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="hm-title">Habit consistency</div>
+        <div class="hm-toggle" id="toggle-habit-ov">
+          <button class="hm-tog active" onclick="setHMView('habit-ov','year',this)">Year</button>
+          <button class="hm-tog" onclick="setHMView('habit-ov','month',this)">Month</button>
+        </div>
+      </div>
+      <div class="hm-sub" id="sub-habit-ov">% of habits completed daily</div>
       <div id="hm-habit-ov"></div>
       <div class="hm-legend">
         <span>0%</span>
@@ -567,8 +600,14 @@ body::before {
       <p>Your emotional landscape over time</p>
     </div>
     <div class="heatmap-wrap">
-      <div class="hm-title">Yearly mood heatmap</div>
-      <div class="hm-sub">Each square is one day · color = mood score 1–10</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="hm-title">Yearly mood heatmap</div>
+        <div class="hm-toggle" id="toggle-mood-full">
+          <button class="hm-tog active" onclick="setHMView('mood-full','year',this)">Year</button>
+          <button class="hm-tog" onclick="setHMView('mood-full','month',this)">Month</button>
+        </div>
+      </div>
+      <div class="hm-sub" id="sub-mood-full">Each square is one day · color = mood score 1–10</div>
       <div id="hm-mood-full"></div>
       <div class="hm-legend">
         <span>😔 Low</span>
@@ -597,8 +636,14 @@ body::before {
       Add new habit
     </button>
     <div class="heatmap-wrap">
-      <div class="hm-title">Habit heatmap</div>
-      <div class="hm-sub">% of habits completed each day</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="hm-title">Habit heatmap</div>
+        <div class="hm-toggle" id="toggle-habit-full">
+          <button class="hm-tog active" onclick="setHMView('habit-full','year',this)">Year</button>
+          <button class="hm-tog" onclick="setHMView('habit-full','month',this)">Month</button>
+        </div>
+      </div>
+      <div class="hm-sub" id="sub-habit-full">% of habits completed each day</div>
       <div id="hm-habit-full"></div>
       <div class="hm-legend">
         <span>0%</span>
@@ -778,18 +823,26 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('overview-date').textContent = fmtL(new Date());
   initSlider(); initEmojis(); loadJDate();
   renderEntries(); renderHabits(); renderHMs(); updateStats();
+
+  // ── Restore signed-in state immediately from localStorage (before GIS loads) ──
+  const savedToken = localStorage.getItem('vent_token');
+  const savedUser  = localStorage.getItem('vent_user');
+  if (savedToken && savedUser) {
+    G.token = savedToken;
+    G.user  = JSON.parse(savedUser);
+    updateTopbar();
+    setStatus('synced', 'Signed in');
+  }
+
   renderSettingsAccount(); renderSettingsSheets();
-  updateTopbar();
 
   document.getElementById('entryBody').addEventListener('input', () => {
     const w = document.getElementById('entryBody').value.trim().split(/\s+/).filter(Boolean).length;
     document.getElementById('wordCount').textContent = w + (w===1?' word':' words');
   });
 
-  // Check if GIS loaded and try restore token
-  window.addEventListener('load', () => {
-    if (typeof google !== 'undefined') initGIS();
-  });
+  // Load GIS and reinit token client
+  window.addEventListener('load', () => { if (typeof google !== 'undefined') initGIS(); });
   setTimeout(() => { if (typeof google !== 'undefined') initGIS(); }, 1500);
 });
 
@@ -806,16 +859,18 @@ function initGIS() {
       scope: SCOPES,
       callback: onTokenReceived,
     });
-    // Try to restore from session
-    const saved = sessionStorage.getItem('vent_token');
-    const savedUser = localStorage.getItem('vent_user');
-    if (saved && savedUser) {
-      G.token = saved;
-      G.user = JSON.parse(savedUser);
-      updateTopbar();
-      renderSettingsAccount();
-      renderSettingsSheets();
-      setStatus('synced', 'Signed in');
+    // Restore token from localStorage if not already set
+    if (!G.token) {
+      const saved = localStorage.getItem('vent_token');
+      const savedUser = localStorage.getItem('vent_user');
+      if (saved && savedUser) {
+        G.token = saved;
+        G.user = JSON.parse(savedUser);
+        updateTopbar();
+        renderSettingsAccount();
+        renderSettingsSheets();
+        setStatus('synced', 'Signed in');
+      }
     }
   } catch(e) { console.log('GIS init:', e); }
 }
@@ -831,6 +886,7 @@ async function onTokenReceived(resp) {
   if (resp.error) { showToast('Auth failed: ' + resp.error, 'error'); return; }
   G.token = resp.access_token;
   sessionStorage.setItem('vent_token', G.token);
+  localStorage.setItem('vent_token', G.token);
 
   // Get user info
   try {
@@ -858,6 +914,7 @@ function signOut() {
   }
   G.token = null; G.user = null;
   sessionStorage.removeItem('vent_token');
+  localStorage.removeItem('vent_token');
   localStorage.removeItem('vent_user');
   updateTopbar();
   setStatus('', 'Not signed in');
@@ -1253,8 +1310,40 @@ function confirmHabit() {
 }
 
 // ══════════════════════════════════════════════════════
-// HEATMAPS — using inline background-color (no CSS class issues)
+// HEATMAPS — month/year toggle, inline background-color
 // ══════════════════════════════════════════════════════
+const hmView = { 'mood-ov':'year', 'habit-ov':'year', 'mood-full':'year', 'habit-full':'year' };
+const hmMonth = {
+  'mood-ov': new Date().getMonth(),
+  'habit-ov': new Date().getMonth(),
+  'mood-full': new Date().getMonth(),
+  'habit-full': new Date().getMonth()
+};
+const hmYear = {
+  'mood-ov': new Date().getFullYear(),
+  'habit-ov': new Date().getFullYear(),
+  'mood-full': new Date().getFullYear(),
+  'habit-full': new Date().getFullYear()
+};
+
+function setHMView(id, view, btn) {
+  hmView[id] = view;
+  const tog = document.getElementById('toggle-'+id);
+  tog.querySelectorAll('.hm-tog').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (id.startsWith('mood')) renderMoodHM('hm-'+id);
+  else renderHabitHM('hm-'+id);
+}
+
+function changeHMMonth(id, delta) {
+  let m = hmMonth[id] + delta, y = hmYear[id];
+  if (m > 11) { m = 0; y++; }
+  if (m < 0)  { m = 11; y--; }
+  hmMonth[id] = m; hmYear[id] = y;
+  if (id.startsWith('mood')) renderMoodHM('hm-'+id);
+  else renderHabitHM('hm-'+id);
+}
+
 function renderHMs() {
   renderMoodHM('hm-mood-ov');
   renderMoodHM('hm-mood-full');
@@ -1262,7 +1351,7 @@ function renderHMs() {
   renderHabitHM('hm-habit-full');
 }
 
-function buildWeeks() {
+function buildYearWeeks() {
   const today = new Date();
   const start = new Date(today.getFullYear(), 0, 1);
   while (start.getDay() !== 0) start.setDate(start.getDate()-1);
@@ -1276,80 +1365,166 @@ function buildWeeks() {
   return weeks;
 }
 
-function renderMoodHM(id) {
-  const el = document.getElementById(id); if (!el) return;
-  const weeks = buildWeeks(), today = new Date();
+function buildMonthWeeks(year, month) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month+1, 0);
+  // start on Sunday before/on firstDay
+  const start = new Date(firstDay);
+  while (start.getDay() !== 0) start.setDate(start.getDate()-1);
+  const weeks = []; let d = new Date(start);
+  while (d <= lastDay) {
+    const w = [];
+    for (let i=0; i<7; i++) { w.push(new Date(d)); d.setDate(d.getDate()+1); }
+    weeks.push(w);
+  }
+  return weeks;
+}
 
-  // Month labels
-  let monthHtml = '';
-  let lastM = -1, lastWi = 0;
-  weeks.forEach((w, wi) => {
-    const m = w[0].getMonth();
-    if (m !== lastM) {
-      monthHtml += `<span style="width:${(wi-lastWi)*14}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
-      lastM = m; lastWi = wi;
-    }
-  });
+const DAYS_SHORT = ['S','M','T','W','T','F','S'];
 
-  const dlHtml = ['S','','T','','T','','S'].map(l =>
+function hmDayLabels() {
+  return DAYS_SHORT.map(l =>
     `<div style="font-size:0.55rem;color:var(--ink-muted);height:12px;line-height:12px;text-align:right;padding-right:3px">${l}</div>`
   ).join('');
+}
 
-  const gridHtml = weeks.map(w => {
-    const cells = w.map(day => {
-      const k = dk(day), m = S.moods[k], fut = day > today;
-      const bg = fut ? '#F4F2EF' : moodColor(m);
-      const op = fut ? '0.2' : '1';
-      const tip = m ? `${k}: ${m}/10 ${moodE(m)}` : k;
-      return `<div class="hm-cell" style="background:${bg};opacity:${op}" data-tip="${tip}"></div>`;
+function renderMoodHM(id) {
+  const shortId = id.replace('hm-', '');
+  const el = document.getElementById(id); if (!el) return;
+  const today = new Date();
+  const isMonth = hmView[shortId] === 'month';
+
+  if (isMonth) {
+    const year = hmYear[shortId], month = hmMonth[shortId];
+    const weeks = buildMonthWeeks(year, month);
+    const label = new Date(year, month, 1).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+
+    const subEl = document.getElementById('sub-'+shortId);
+    if (subEl) subEl.textContent = label;
+
+    const gridHtml = weeks.map(w => {
+      const cells = w.map(day => {
+        const inMonth = day.getMonth() === month;
+        const k = dk(day), m = S.moods[k], fut = day > today;
+        const bg = (!inMonth || fut) ? '#F4F2EF' : moodColor(m);
+        const op = !inMonth ? '0.25' : fut ? '0.2' : '1';
+        const tip = inMonth ? (m ? `${k}: ${m}/10 ${moodE(m)}` : k) : '';
+        return `<div class="hm-cell" style="background:${bg};opacity:${op}" ${tip?`data-tip="${tip}"`:''}></div>`;
+      }).join('');
+      return `<div class="hm-week">${cells}</div>`;
     }).join('');
-    return `<div class="hm-week">${cells}</div>`;
-  }).join('');
 
-  el.innerHTML = `
-    <div style="display:flex;padding-left:26px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
-    <div style="display:flex;gap:3px">
-      <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${dlHtml}</div>
-      <div class="hm-grid">${gridHtml}</div>
-    </div>`;
+    el.innerHTML = `
+      <div class="hm-month-nav">
+        <button class="arrow-btn" onclick="changeHMMonth('${shortId}',-1)" style="width:22px;height:22px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <span class="month-label">${label}</span>
+        <button class="arrow-btn" onclick="changeHMMonth('${shortId}',1)" style="width:22px;height:22px" ${new Date(year,month+1,1)>today?'disabled style="opacity:0.3;cursor:default"':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div style="display:flex;gap:3px">
+        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${hmDayLabels()}</div>
+        <div class="hm-grid">${gridHtml}</div>
+      </div>`;
+  } else {
+    // Year view
+    const subEl = document.getElementById('sub-'+shortId);
+    if (subEl) subEl.textContent = 'Daily mood score (1–10) · hover for details';
+    const weeks = buildYearWeeks();
+    let monthHtml = '', lastM = -1, lastWi = 0;
+    weeks.forEach((w, wi) => {
+      const m = w[0].getMonth();
+      if (m !== lastM) {
+        monthHtml += `<span style="width:${(wi-lastWi)*14}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
+        lastM = m; lastWi = wi;
+      }
+    });
+    const gridHtml = weeks.map(w => {
+      const cells = w.map(day => {
+        const k = dk(day), m = S.moods[k], fut = day > today;
+        const bg = fut ? '#F4F2EF' : moodColor(m);
+        const op = fut ? '0.2' : '1';
+        const tip = m ? `${k}: ${m}/10 ${moodE(m)}` : k;
+        return `<div class="hm-cell" style="background:${bg};opacity:${op}" data-tip="${tip}"></div>`;
+      }).join('');
+      return `<div class="hm-week">${cells}</div>`;
+    }).join('');
+    el.innerHTML = `
+      <div style="display:flex;padding-left:26px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
+      <div style="display:flex;gap:3px">
+        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${hmDayLabels()}</div>
+        <div class="hm-grid">${gridHtml}</div>
+      </div>`;
+  }
 }
 
 function renderHabitHM(id) {
+  const shortId = id.replace('hm-', '');
   const el = document.getElementById(id); if (!el) return;
-  const weeks = buildWeeks(), today = new Date(), total = S.habits.length || 1;
+  const today = new Date();
+  const isMonth = hmView[shortId] === 'month';
 
-  let monthHtml = '', lastM = -1, lastWi = 0;
-  weeks.forEach((w, wi) => {
-    const m = w[0].getMonth();
-    if (m !== lastM) {
-      monthHtml += `<span style="width:${(wi-lastWi)*14}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
-      lastM = m; lastWi = wi;
-    }
-  });
+  if (isMonth) {
+    const year = hmYear[shortId], month = hmMonth[shortId];
+    const weeks = buildMonthWeeks(year, month);
+    const label = new Date(year, month, 1).toLocaleDateString('en-US', { month:'long', year:'numeric' });
 
-  const dlHtml = ['S','','T','','T','','S'].map(l =>
-    `<div style="font-size:0.55rem;color:var(--ink-muted);height:12px;line-height:12px;text-align:right;padding-right:3px">${l}</div>`
-  ).join('');
+    const subEl = document.getElementById('sub-'+shortId);
+    if (subEl) subEl.textContent = label;
 
-  const gridHtml = weeks.map(w => {
-    const cells = w.map(day => {
-      const k = dk(day), fut = day > today;
-      const done = (S.logs[k]||[]).length;
-      const pct = S.habits.length ? Math.round(done/S.habits.length*100) : 0;
-      const bg = fut ? '#F4F2EF' : habitColor(pct);
-      const op = fut ? '0.2' : '1';
-      const tip = `${k}: ${pct}% (${done}/${S.habits.length||0})`;
-      return `<div class="hm-cell" style="background:${bg};opacity:${op}" data-tip="${tip}"></div>`;
+    const gridHtml = weeks.map(w => {
+      const cells = w.map(day => {
+        const inMonth = day.getMonth() === month;
+        const k = dk(day), fut = day > today;
+        const done = (S.logs[k]||[]).length;
+        const pct = S.habits.length ? Math.round(done/S.habits.length*100) : 0;
+        const bg = (!inMonth || fut) ? '#F4F2EF' : habitColor(pct);
+        const op = !inMonth ? '0.25' : fut ? '0.2' : '1';
+        const tip = inMonth ? `${k}: ${pct}% (${done}/${S.habits.length||0})` : '';
+        return `<div class="hm-cell" style="background:${bg};opacity:${op}" ${tip?`data-tip="${tip}"`:''}></div>`;
+      }).join('');
+      return `<div class="hm-week">${cells}</div>`;
     }).join('');
-    return `<div class="hm-week">${cells}</div>`;
-  }).join('');
 
-  el.innerHTML = `
-    <div style="display:flex;padding-left:26px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
-    <div style="display:flex;gap:3px">
-      <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${dlHtml}</div>
-      <div class="hm-grid">${gridHtml}</div>
-    </div>`;
+    el.innerHTML = `
+      <div class="hm-month-nav">
+        <button class="arrow-btn" onclick="changeHMMonth('${shortId}',-1)" style="width:22px;height:22px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <span class="month-label">${label}</span>
+        <button class="arrow-btn" onclick="changeHMMonth('${shortId}',1)" style="width:22px;height:22px" ${new Date(year,month+1,1)>today?'disabled style="opacity:0.3;cursor:default"':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div style="display:flex;gap:3px">
+        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${hmDayLabels()}</div>
+        <div class="hm-grid">${gridHtml}</div>
+      </div>`;
+  } else {
+    const subEl = document.getElementById('sub-'+shortId);
+    if (subEl) subEl.textContent = '% of habits completed each day';
+    const weeks = buildYearWeeks();
+    let monthHtml = '', lastM = -1, lastWi = 0;
+    weeks.forEach((w, wi) => {
+      const m = w[0].getMonth();
+      if (m !== lastM) {
+        monthHtml += `<span style="width:${(wi-lastWi)*14}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
+        lastM = m; lastWi = wi;
+      }
+    });
+    const gridHtml = weeks.map(w => {
+      const cells = w.map(day => {
+        const k = dk(day), fut = day > today;
+        const done = (S.logs[k]||[]).length;
+        const pct = S.habits.length ? Math.round(done/S.habits.length*100) : 0;
+        const bg = fut ? '#F4F2EF' : habitColor(pct);
+        const op = fut ? '0.2' : '1';
+        const tip = `${k}: ${pct}% (${done}/${S.habits.length||0})`;
+        return `<div class="hm-cell" style="background:${bg};opacity:${op}" data-tip="${tip}"></div>`;
+      }).join('');
+      return `<div class="hm-week">${cells}</div>`;
+    }).join('');
+    el.innerHTML = `
+      <div style="display:flex;padding-left:26px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
+      <div style="display:flex;gap:3px">
+        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${hmDayLabels()}</div>
+        <div class="hm-grid">${gridHtml}</div>
+      </div>`;
+  }
 }
 
 // ══════════════════════════════════════════════════════
