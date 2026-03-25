@@ -187,6 +187,20 @@ body::before {
 }
 .hm-cell:hover::after { display: block; }
 
+/* Month view — bigger cells with day numbers */
+.hm-cell-lg {
+  width: 36px; height: 36px; border-radius: 8px;
+  cursor: default; position: relative; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1px;
+  transition: transform 0.12s;
+}
+.hm-cell-lg:hover { transform: scale(1.08); z-index: 5; }
+.hm-grid-lg { display: flex; gap: 4px; }
+.hm-week-lg { display: flex; flex-direction: column; gap: 4px; }
+.hm-day-labels-lg { display: flex; flex-direction: column; gap: 4px; padding-top: 2px; width: 26px; flex-shrink: 0; }
+.hm-day-lbl-lg { font-size: 0.6rem; color: var(--ink-muted); height: 36px; line-height: 36px; text-align: right; padding-right: 4px; }
+
 /* ─── MOOD CELL COLORS — explicit hex, no CSS class dependency ─── */
 /* These are set inline via JS using background-color directly */
 
@@ -765,7 +779,7 @@ body::before {
 // Authorized JS origins: add the URL where you host this file
 // ══════════════════════════════════════════════════════
 const CLIENT_ID = '800597858691-6bgsp4oej61rhici4d4u1rcibhe9jn6c.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file email profile';
 
 // ══════════════════════════════════════════════════════
 // STATE
@@ -889,39 +903,48 @@ async function onTokenReceived(resp) {
   }
 
   G.token = resp.access_token;
-  G.user = null; // clear stale user so we always fetch fresh
+  G.user = null;
   localStorage.setItem('vent_token', G.token);
-  localStorage.removeItem('vent_user'); // remove any stale cached user
+  localStorage.removeItem('vent_user');
 
-  // Always fetch fresh user info
+  // Fetch user info from Google
+  let email = '', name = '', picture = '';
   try {
     const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { 'Authorization': 'Bearer ' + G.token }
     });
-    if (!r.ok) throw new Error('userinfo ' + r.status);
-    const data = await r.json();
-    G.user = {
-      name: data.name || '',
-      email: data.email || '',
-      picture: data.picture || '',
-      initials: (data.email || 'G').substring(0, 2).toUpperCase()
-    };
-    localStorage.setItem('vent_user', JSON.stringify(G.user));
-  } catch(e) {
-    // If userinfo fails, create a minimal user object so UI still updates
-    if (!G.user) G.user = { name: '', email: '', picture: '', initials: 'G' };
+    if (r.ok) {
+      const d = await r.json();
+      email   = d.email   || '';
+      name    = d.name    || '';
+      picture = d.picture || '';
+    }
+  } catch(e) { /* will use fallbacks below */ }
+
+  // If userinfo didn't give us an email, try decoding the id_token JWT payload
+  if (!email && resp.id_token) {
+    try {
+      const payload = JSON.parse(atob(resp.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      email   = email   || payload.email   || '';
+      name    = name    || payload.name    || '';
+      picture = picture || payload.picture || '';
+    } catch(e) {}
   }
 
-  // Update all UI immediately
+  G.user = {
+    email,
+    name,
+    picture,
+    initials: (email || name || 'G').replace(/@.*/, '').substring(0, 2).toUpperCase()
+  };
+  localStorage.setItem('vent_user', JSON.stringify(G.user));
+
   setStatus('synced', 'Signed in');
   renderSettingsAccount();
   renderSettingsSheets();
 
-  // Create or find sheet
   await ensureSheet();
   renderSettingsSheets();
-
-  // Full sync
   await syncAll();
   showToast('Signed in & synced ✓', 'success');
 }
@@ -1175,10 +1198,27 @@ function renderSettingsSheets() {
         <button class="btn-ghost" onclick="forgetSheet()">Unlink sheet</button>
       </div>`;
   } else if (G.user) {
-    body.innerHTML = `<p style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px">No sheet linked yet. One will be created automatically in your Google Drive.</p>
-      <button class="btn-primary" onclick="ensureSheet().then(()=>renderSettingsSheets())">
-        Create "Vent Journal" Sheet
-      </button>`;
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn-primary" onclick="ensureSheet().then(()=>renderSettingsSheets())" style="justify-content:center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create new "Vent Journal" sheet
+        </button>
+        <div style="display:flex;align-items:center;gap:10px;color:var(--ink-muted);font-size:0.75rem">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          or use existing
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.67rem;color:var(--ink-muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:5px">Spreadsheet URL or ID</label>
+          <input id="existingSheetInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/…">
+          <p style="font-size:0.68rem;color:var(--ink-muted);margin-top:5px">Paste the full URL or just the spreadsheet ID from an existing Vent sheet.</p>
+        </div>
+        <button class="btn-outline" onclick="linkExistingSheet()" style="justify-content:center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          Link existing sheet
+        </button>
+      </div>`;
   } else {
     body.innerHTML = `<p style="font-size:0.8rem;color:var(--ink-muted)">Sign in with Google above to enable sheet sync.</p>`;
   }
@@ -1191,6 +1231,42 @@ function forgetSheet() {
   localStorage.removeItem('vent_sheet_url');
   renderSettingsSheets();
   showToast('Sheet unlinked');
+}
+
+async function linkExistingSheet() {
+  const raw = (document.getElementById('existingSheetInput')?.value || '').trim();
+  if (!raw) return showToast('Paste a sheet URL or ID first', 'error');
+
+  // Extract spreadsheet ID from full URL or use as-is if it looks like an ID
+  let sheetId = raw;
+  const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (match) sheetId = match[1];
+
+  setStatus('syncing', 'Verifying…');
+  try {
+    const meta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=spreadsheetId,spreadsheetUrl,sheets.properties.title`);
+    G.sheetId  = meta.spreadsheetId;
+    G.sheetUrl = meta.spreadsheetUrl;
+    localStorage.setItem('vent_sheet_id',  G.sheetId);
+    localStorage.setItem('vent_sheet_url', G.sheetUrl);
+
+    // Ensure the required tabs exist (create missing ones)
+    const existingTitles = (meta.sheets || []).map(s => s.properties.title);
+    const needed = ['Journal','Habits','HabitLogs'];
+    const missing = needed.filter(t => !existingTitles.includes(t));
+    if (missing.length) {
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${G.sheetId}:batchUpdate`, {
+        method: 'POST',
+        body: JSON.stringify({ requests: missing.map(t => ({ addSheet: { properties: { title: t } } })) })
+      });
+    }
+    renderSettingsSheets();
+    await syncAll();
+    showToast('Sheet linked & synced ✓', 'success');
+  } catch(e) {
+    setStatus('error', 'Could not link');
+    showToast('Could not access that sheet. Make sure you have edit access.', 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1455,11 +1531,16 @@ function renderMoodHM(id) {
         const inMonth = day.getMonth() === month;
         const k = dk(day), m = S.moods[k], fut = day > today;
         const bg = (!inMonth || fut) ? '#F4F2EF' : moodColor(m);
-        const op = !inMonth ? '0.25' : fut ? '0.2' : '1';
-        const tip = inMonth ? (m ? `${k}: ${m}/10 ${moodE(m)}` : k) : '';
-        return `<div class="hm-cell" style="background:${bg};opacity:${op}" ${tip?`data-tip="${tip}"`:''}></div>`;
+        const op = !inMonth ? '0.2' : '1';
+        const dayN = day.getDate();
+        // Text color: dark on light backgrounds, white on dark greens
+        const textColor = (!inMonth || fut || !m) ? 'var(--ink-muted)' : (m >= 8 ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)');
+        return `<div class="hm-cell-lg" style="background:${bg};opacity:${op}" title="${inMonth && m ? `${k}: mood ${m}/10 ${moodE(m)}` : k}">
+          <span style="font-size:0.6rem;color:${textColor};font-weight:500;line-height:1">${inMonth ? dayN : ''}</span>
+          ${inMonth && m ? `<span style="font-size:0.72rem;font-weight:700;color:${textColor};line-height:1">${m}</span>` : ''}
+        </div>`;
       }).join('');
-      return `<div class="hm-week">${cells}</div>`;
+      return `<div class="hm-week-lg">${cells}</div>`;
     }).join('');
 
     el.innerHTML = `
@@ -1468,9 +1549,11 @@ function renderMoodHM(id) {
         <span class="month-label">${label}</span>
         <button class="arrow-btn" onclick="changeHMMonth('${shortId}',1)" style="width:22px;height:22px" ${new Date(year,month+1,1)>today?'disabled style="opacity:0.3;cursor:default"':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
-      <div style="display:flex;gap:3px">
-        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${hmDayLabels()}</div>
-        <div class="hm-grid">${gridHtml}</div>
+      <div style="display:flex;gap:4px">
+        <div class="hm-day-labels-lg">
+          ${['S','M','T','W','T','F','S'].map(l=>`<div class="hm-day-lbl-lg">${l}</div>`).join('')}
+        </div>
+        <div class="hm-grid-lg">${gridHtml}</div>
       </div>`;
   } else {
     // Year view
@@ -1523,13 +1606,18 @@ function renderHabitHM(id) {
         const inMonth = day.getMonth() === month;
         const k = dk(day), fut = day > today;
         const done = (S.logs[k]||[]).length;
-        const pct = S.habits.length ? Math.round(done/S.habits.length*100) : 0;
+        const total = S.habits.length || 0;
+        const pct = total ? Math.round(done/total*100) : 0;
         const bg = (!inMonth || fut) ? '#F4F2EF' : habitColor(pct);
-        const op = !inMonth ? '0.25' : fut ? '0.2' : '1';
-        const tip = inMonth ? `${k}: ${pct}% (${done}/${S.habits.length||0})` : '';
-        return `<div class="hm-cell" style="background:${bg};opacity:${op}" ${tip?`data-tip="${tip}"`:''}></div>`;
+        const op = !inMonth ? '0.2' : '1';
+        const dayN = day.getDate();
+        const textColor = (!inMonth || fut || !total || !done) ? 'var(--ink-muted)' : (pct >= 75 ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.6)');
+        return `<div class="hm-cell-lg" style="background:${bg};opacity:${op}" title="${inMonth ? `${k}: ${pct}% (${done}/${total})` : k}">
+          <span style="font-size:0.6rem;color:${textColor};font-weight:500;line-height:1">${inMonth ? dayN : ''}</span>
+          ${inMonth && total && done ? `<span style="font-size:0.65rem;font-weight:700;color:${textColor};line-height:1">${pct}%</span>` : ''}
+        </div>`;
       }).join('');
-      return `<div class="hm-week">${cells}</div>`;
+      return `<div class="hm-week-lg">${cells}</div>`;
     }).join('');
 
     el.innerHTML = `
@@ -1538,9 +1626,11 @@ function renderHabitHM(id) {
         <span class="month-label">${label}</span>
         <button class="arrow-btn" onclick="changeHMMonth('${shortId}',1)" style="width:22px;height:22px" ${new Date(year,month+1,1)>today?'disabled style="opacity:0.3;cursor:default"':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
-      <div style="display:flex;gap:3px">
-        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${hmDayLabels()}</div>
-        <div class="hm-grid">${gridHtml}</div>
+      <div style="display:flex;gap:4px">
+        <div class="hm-day-labels-lg">
+          ${['S','M','T','W','T','F','S'].map(l=>`<div class="hm-day-lbl-lg">${l}</div>`).join('')}
+        </div>
+        <div class="hm-grid-lg">${gridHtml}</div>
       </div>`;
   } else {
     const subEl = document.getElementById('sub-'+shortId);
