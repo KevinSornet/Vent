@@ -524,12 +524,12 @@ body::before {
       <div class="hm-legend">
         <span>😔</span>
         <div style="display:flex;gap:2px">
-          <div class="hm-lc" style="background:#FDCDD0"></div>
-          <div class="hm-lc" style="background:#FDD6A2"></div>
-          <div class="hm-lc" style="background:#FDE68A"></div>
-          <div class="hm-lc" style="background:#BBF7D0"></div>
-          <div class="hm-lc" style="background:#C4B5FD"></div>
-          <div class="hm-lc" style="background:#7C3AED"></div>
+          <div class="hm-lc" style="background:#EF4444"></div>
+          <div class="hm-lc" style="background:#FBBF24"></div>
+          <div class="hm-lc" style="background:#FDE047"></div>
+          <div class="hm-lc" style="background:#4ADE80"></div>
+          <div class="hm-lc" style="background:#22C55E"></div>
+          <div class="hm-lc" style="background:#15803D"></div>
         </div>
         <span>😄</span>
       </div>
@@ -612,12 +612,12 @@ body::before {
       <div class="hm-legend">
         <span>😔 Low</span>
         <div style="display:flex;gap:2px">
-          <div class="hm-lc" style="background:#FDCDD0"></div>
-          <div class="hm-lc" style="background:#FDD6A2"></div>
-          <div class="hm-lc" style="background:#FDE68A"></div>
-          <div class="hm-lc" style="background:#BBF7D0"></div>
-          <div class="hm-lc" style="background:#C4B5FD"></div>
-          <div class="hm-lc" style="background:#7C3AED"></div>
+          <div class="hm-lc" style="background:#EF4444"></div>
+          <div class="hm-lc" style="background:#FBBF24"></div>
+          <div class="hm-lc" style="background:#FDE047"></div>
+          <div class="hm-lc" style="background:#4ADE80"></div>
+          <div class="hm-lc" style="background:#22C55E"></div>
+          <div class="hm-lc" style="background:#15803D"></div>
         </div>
         <span>High 😄</span>
       </div>
@@ -799,10 +799,14 @@ let isSyncing = false;
 const EMOJIS = ['📖','🎵','🏃','🧘','💪','🎨','🌿','☀️','🍎','💤','✍️','🎯','🧹','💧','🤸','📚','🐾','🧠','🌙','❤️'];
 const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// Mood → color mapping (explicit hex, always visible)
+// Mood → color mapping: red (1) → orange → yellow → lime → green (10)
 function moodColor(m) {
   if (!m) return '#EDE9E3';
-  const colors = { 1:'#F87171', 2:'#FCA5A5', 3:'#FDBA74', 4:'#FCD34D', 5:'#FDE68A', 6:'#86EFAC', 7:'#4ADE80', 8:'#A78BFA', 9:'#8B5CF6', 10:'#6D28D9' };
+  const colors = {
+    1:'#EF4444', 2:'#F97316', 3:'#FB923C', 4:'#FBBF24',
+    5:'#FDE047', 6:'#A3E635', 7:'#4ADE80', 8:'#22C55E',
+    9:'#16A34A', 10:'#15803D'
+  };
   return colors[m] || '#EDE9E3';
 }
 function habitColor(pct) {
@@ -821,29 +825,44 @@ document.addEventListener('DOMContentLoaded', () => {
   const h = new Date().getHours();
   document.getElementById('greeting').textContent = h<12?'morning':h<17?'afternoon':'evening';
   document.getElementById('overview-date').textContent = fmtL(new Date());
-  initSlider(); initEmojis(); loadJDate();
-  renderEntries(); renderHabits(); renderHMs(); updateStats();
 
-  // ── Restore signed-in state immediately from localStorage (before GIS loads) ──
+  // ── Restore auth state from localStorage FIRST, before any render calls ──
   const savedToken = localStorage.getItem('vent_token');
   const savedUser  = localStorage.getItem('vent_user');
   if (savedToken && savedUser) {
-    G.token = savedToken;
-    G.user  = JSON.parse(savedUser);
-    updateTopbar();
-    setStatus('synced', 'Signed in');
+    try {
+      G.token = savedToken;
+      G.user  = JSON.parse(savedUser);
+    } catch(e) {
+      G.token = null; G.user = null;
+      localStorage.removeItem('vent_token');
+      localStorage.removeItem('vent_user');
+    }
   }
 
-  renderSettingsAccount(); renderSettingsSheets();
+  // Now render everything with correct auth state already in G
+  initSlider(); initEmojis(); loadJDate();
+  renderEntries(); renderHabits(); renderHMs(); updateStats();
+  updateTopbar();
+  setStatus(G.token ? 'synced' : '', G.token ? 'Signed in' : 'Not signed in');
+  renderSettingsAccount();
+  renderSettingsSheets();
 
   document.getElementById('entryBody').addEventListener('input', () => {
     const w = document.getElementById('entryBody').value.trim().split(/\s+/).filter(Boolean).length;
     document.getElementById('wordCount').textContent = w + (w===1?' word':' words');
   });
 
-  // Load GIS and reinit token client
-  window.addEventListener('load', () => { if (typeof google !== 'undefined') initGIS(); });
-  setTimeout(() => { if (typeof google !== 'undefined') initGIS(); }, 1500);
+  // Init GIS after DOM is ready (GIS script loads async)
+  if (typeof google !== 'undefined') {
+    initGIS();
+  } else {
+    // Poll until GIS is available (it loads async)
+    const poll = setInterval(() => {
+      if (typeof google !== 'undefined') { clearInterval(poll); initGIS(); }
+    }, 200);
+    setTimeout(() => clearInterval(poll), 10000); // stop after 10s
+  }
 });
 
 // ══════════════════════════════════════════════════════
@@ -859,27 +878,18 @@ function initGIS() {
       scope: SCOPES,
       callback: onTokenReceived,
     });
-    // Restore token from localStorage if not already set
-    if (!G.token) {
-      const saved = localStorage.getItem('vent_token');
-      const savedUser = localStorage.getItem('vent_user');
-      if (saved && savedUser) {
-        G.token = saved;
-        G.user = JSON.parse(savedUser);
-        updateTopbar();
-        renderSettingsAccount();
-        renderSettingsSheets();
-        setStatus('synced', 'Signed in');
-      }
-    }
-  } catch(e) { console.log('GIS init:', e); }
+  } catch(e) { console.log('GIS init error:', e); }
 }
 
 function startGoogleAuth() {
-  if (!tokenClient) { initGIS(); }
-  if (tokenClient) {
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+  if (!tokenClient) {
+    showToast('Google sign-in loading, try again…', '');
+    initGIS();
+    return;
   }
+  // If already have user, try silent refresh first
+  const prompt = G.user ? '' : 'consent';
+  tokenClient.requestAccessToken({ prompt });
 }
 
 async function onTokenReceived(resp) {
@@ -888,14 +898,18 @@ async function onTokenReceived(resp) {
   sessionStorage.setItem('vent_token', G.token);
   localStorage.setItem('vent_token', G.token);
 
-  // Get user info
-  try {
-    const r = await gFetch('https://www.googleapis.com/oauth2/v2/userinfo');
-    G.user = { name: r.name, email: r.email, picture: r.picture, initials: r.name?.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase() };
-    localStorage.setItem('vent_user', JSON.stringify(G.user));
-  } catch(e) {}
+  // Get user info (or reuse cached)
+  if (!G.user) {
+    try {
+      const r = await gFetch('https://www.googleapis.com/oauth2/v2/userinfo');
+      G.user = { name: r.name, email: r.email, picture: r.picture, initials: r.name?.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase() };
+      localStorage.setItem('vent_user', JSON.stringify(G.user));
+    } catch(e) {}
+  }
 
+  // Always refresh UI
   updateTopbar();
+  setStatus('synced', 'Signed in');
   renderSettingsAccount();
 
   // Create or find sheet
@@ -1042,10 +1056,13 @@ async function syncAll() {
     setStatus('synced', 'Signed in');
   } catch(e) {
     setStatus('error', 'Sync error');
-    // Token may have expired — try refresh
-    if (e.message?.includes('401')) {
-      G.token = null; sessionStorage.removeItem('vent_token');
-      setStatus('error', 'Session expired');
+    if (e.message?.includes('401') || e.message?.includes('invalid_token')) {
+      G.token = null;
+      sessionStorage.removeItem('vent_token');
+      localStorage.removeItem('vent_token');
+      setStatus('error', 'Session expired — sign in again');
+      updateTopbar();
+      renderSettingsAccount();
     }
   }
   isSyncing = false;
