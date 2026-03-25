@@ -899,15 +899,15 @@ async function onTokenReceived(resp) {
     if (!r.ok) throw new Error('userinfo ' + r.status);
     const data = await r.json();
     G.user = {
-      name: data.name || '',
+      name: data.name || data.email || 'Google User',
       email: data.email || '',
       picture: data.picture || '',
-      initials: (data.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase()
+      initials: (data.name || data.email || '?').split(/[\s@]/)[0].substring(0,2).toUpperCase()
     };
     localStorage.setItem('vent_user', JSON.stringify(G.user));
   } catch(e) {
     // If userinfo fails, create a minimal user object so UI still updates
-    if (!G.user) G.user = { name: 'Google User', email: '', picture: '', initials: 'G' };
+    if (!G.user) G.user = { name: '', email: 'Google Account', picture: '', initials: 'G' };
   }
 
   // Update all UI immediately
@@ -1103,8 +1103,8 @@ function renderSettingsAccount() {
           ${G.user.picture ? `<img src="${G.user.picture}" alt="" style="width:100%;height:100%;object-fit:cover">` : (G.user.initials||'?')}
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:1rem;font-weight:500;color:var(--ink)">${G.user.name||'Google User'}</div>
-          <div style="font-size:0.74rem;color:var(--ink-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${G.user.email||''}</div>
+          <div style="font-size:1rem;font-weight:500;color:var(--ink)">${G.user.name && G.user.name !== 'Google User' ? G.user.name : G.user.email}</div>
+          ${G.user.name && G.user.name !== 'Google User' && G.user.email ? `<div style="font-size:0.74rem;color:var(--ink-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${G.user.email}</div>` : ''}
           <div style="display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 9px;border-radius:20px;background:${tokenOk?'#DCFCE7':'#FEF9C3'};border:1px solid ${tokenOk?'#86EFAC':'#FDE047'}">
             <span style="width:6px;height:6px;border-radius:50%;background:${tokenOk?'#22C55E':'#EAB308'};flex-shrink:0"></span>
             <span style="font-size:0.68rem;color:${tokenOk?'#166534':'#854D0E'}">${tokenOk?'Syncing active':'Session expired'}</span>
