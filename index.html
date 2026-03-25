@@ -483,15 +483,6 @@ body::before {
       <span class="sdot" id="sdot"></span>
       <span id="statusLabel">Not signed in</span>
     </div>
-    <div class="user-chip" id="userChip" style="display:none">
-      <div class="user-avatar" id="topAvatar"></div>
-      <span id="topName"></span>
-    </div>
-    <button class="google-btn" id="signInBtn" onclick="startGoogleAuth()">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-      Sign in with Google
-    </button>
-    <button class="btn-ghost" id="signOutBtn" style="display:none;font-size:0.68rem" onclick="signOut()">Sign out</button>
   </div>
 </header>
 
@@ -1071,25 +1062,7 @@ async function syncAll() {
 // UI STATE
 // ══════════════════════════════════════════════════════
 function updateTopbar() {
-  const signInBtn = document.getElementById('signInBtn');
-  const signOutBtn = document.getElementById('signOutBtn');
-  const userChip = document.getElementById('userChip');
-  const topAvatar = document.getElementById('topAvatar');
-  const topName = document.getElementById('topName');
-
-  if (G.user) {
-    signInBtn.style.display = 'none';
-    userChip.style.display = 'flex';
-    signOutBtn.style.display = '';
-    topAvatar.innerHTML = G.user.picture
-      ? `<img src="${G.user.picture}" alt="">`
-      : G.user.initials || '?';
-    topName.textContent = G.user.name?.split(' ')[0] || G.user.email;
-  } else {
-    signInBtn.style.display = '';
-    userChip.style.display = 'none';
-    signOutBtn.style.display = 'none';
-  }
+  // Topbar no longer has auth elements — sign-in lives in Settings only
 }
 
 function setStatus(state, label) {
@@ -1101,33 +1074,67 @@ function setStatus(state, label) {
 
 function renderSettingsAccount() {
   const body = document.getElementById('accountBody');
+
+  // Compute live stats
+  const totalEntries = Object.keys(S.entries).length;
+  const totalHabits  = S.habits.length;
+  const moodVals = Object.values(S.moods).filter(Boolean);
+  const avgMood  = moodVals.length ? (moodVals.reduce((a,b)=>a+b,0)/moodVals.length).toFixed(1) : '—';
+  let streak = 0, sd = new Date();
+  while (S.entries[dk(sd)] || S.moods[dk(sd)]) { streak++; sd.setDate(sd.getDate()-1); }
+
   if (G.user) {
     const tokenOk = !!G.token;
     body.innerHTML = `
-      <div class="google-account-card">
-        <div class="ga-left">
-          <div class="ga-avatar">${G.user.picture ? `<img src="${G.user.picture}" alt="">` : (G.user.initials||'?')}</div>
-          <div class="ga-info">
-            <h4>${G.user.name||'Google User'}</h4>
-            <p>${G.user.email||''}</p>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+        <div style="width:54px;height:54px;border-radius:50%;overflow:hidden;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:600;color:var(--purple-deep);flex-shrink:0;border:2px solid var(--purple-light)">
+          ${G.user.picture ? `<img src="${G.user.picture}" alt="" style="width:100%;height:100%;object-fit:cover">` : (G.user.initials||'?')}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:1rem;font-weight:500;color:var(--ink)">${G.user.name||'Google User'}</div>
+          <div style="font-size:0.74rem;color:var(--ink-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${G.user.email||''}</div>
+          <div style="display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 9px;border-radius:20px;background:${tokenOk?'#DCFCE7':'#FEF9C3'};border:1px solid ${tokenOk?'#86EFAC':'#FDE047'}">
+            <span style="width:6px;height:6px;border-radius:50%;background:${tokenOk?'#22C55E':'#EAB308'};flex-shrink:0"></span>
+            <span style="font-size:0.68rem;color:${tokenOk?'#166534':'#854D0E'}">${tokenOk?'Syncing active':'Session expired'}</span>
           </div>
         </div>
-        <button class="btn-ghost" onclick="signOut()">Sign out</button>
+        <button class="btn-ghost" onclick="signOut()" style="flex-shrink:0">Sign out</button>
       </div>
-      ${tokenOk
-        ? `<p style="font-size:0.78rem;color:var(--ink-muted);line-height:1.6">Your journal data syncs automatically to a private Google Sheet in your Drive after every action.</p>`
-        : `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#FEF9C3;border:1px solid #FDE047;margin-top:4px">
-            <span style="font-size:0.78rem;color:#854D0E;flex:1">Session expired. Re-authorize to resume syncing.</span>
-            <button class="btn-primary" onclick="startGoogleAuth()" style="padding:6px 14px;font-size:0.75rem">Re-authorize</button>
-           </div>`
-      }`;
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+        <div style="background:var(--purple-lightest);border:1px solid var(--purple-light);border-radius:12px;padding:12px 14px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:500;color:var(--purple);line-height:1">${totalEntries}</div>
+          <div style="font-size:0.68rem;color:var(--ink-muted);margin-top:3px">Journal entries</div>
+        </div>
+        <div style="background:var(--purple-lightest);border:1px solid var(--purple-light);border-radius:12px;padding:12px 14px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:500;color:var(--purple);line-height:1">${streak}</div>
+          <div style="font-size:0.68rem;color:var(--ink-muted);margin-top:3px">Day streak</div>
+        </div>
+        <div style="background:var(--purple-lightest);border:1px solid var(--purple-light);border-radius:12px;padding:12px 14px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:500;color:var(--purple);line-height:1">${avgMood}</div>
+          <div style="font-size:0.68rem;color:var(--ink-muted);margin-top:3px">Avg mood (all time)</div>
+        </div>
+        <div style="background:var(--purple-lightest);border:1px solid var(--purple-light);border-radius:12px;padding:12px 14px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:500;color:var(--purple);line-height:1">${totalHabits}</div>
+          <div style="font-size:0.68rem;color:var(--ink-muted);margin-top:3px">Habits tracked</div>
+        </div>
+      </div>
+
+      ${!tokenOk ? `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#FEF9C3;border:1px solid #FDE047">
+        <span style="font-size:0.78rem;color:#854D0E;flex:1">Re-authorize to resume syncing to Google Sheets.</span>
+        <button class="btn-primary" onclick="startGoogleAuth()" style="padding:6px 14px;font-size:0.75rem;flex-shrink:0">Re-authorize</button>
+      </div>` : ''}`;
   } else {
     body.innerHTML = `
-      <div class="connect-prompt" style="padding:24px 0">
-        <svg viewBox="0 0 24 24" width="36" height="36"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        <p style="font-size:0.82rem;color:var(--ink-muted);line-height:1.6;margin:0">Sign in with Google to automatically sync your journal entries, mood scores, and habits to your own private Google Sheet.</p>
-        <button class="google-btn" onclick="startGoogleAuth()" style="border-radius:10px;padding:10px 18px">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      <div style="text-align:center;padding:20px 0 8px">
+        <div style="width:54px;height:54px;border-radius:50%;background:var(--off-white);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        </div>
+        <p style="font-size:0.84rem;color:var(--ink-soft);font-weight:500;margin-bottom:6px">Connect your Google account</p>
+        <p style="font-size:0.78rem;color:var(--ink-muted);line-height:1.6;margin-bottom:18px;max-width:280px;margin-left:auto;margin-right:auto">Sign in to automatically sync your entries, mood, and habits to a private Google Sheet in your Drive.</p>
+        <button onclick="startGoogleAuth()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;border:1.5px solid var(--border);background:white;font-family:'DM Sans',sans-serif;font-size:0.84rem;color:var(--ink-soft);cursor:pointer;transition:all 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.06)" onmouseover="this.style.borderColor='var(--purple-light)';this.style.background='var(--purple-lightest)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='white'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
           Sign in with Google
         </button>
       </div>`;
@@ -1241,6 +1248,7 @@ function saveEntry() {
   save(); renderEntries(); updateStats(); renderHMs();
   showToast('Entry saved ✓', 'success');
   triggerSync();
+  if (G.user) renderSettingsAccount();
 }
 
 function renderEntries() {
@@ -1298,6 +1306,7 @@ function togHabit(idx, d) {
   if (i===-1) S.logs[d].push(idx); else S.logs[d].splice(i,1);
   save(); renderHabits(); renderHMs(); updateStats();
   triggerSync();
+  if (G.user) renderSettingsAccount();
 }
 
 function calcStreak(idx) {
@@ -1330,6 +1339,7 @@ function confirmHabit() {
   closeOverlay('habitModal');
   showToast('Habit added!', 'success');
   triggerSync();
+  if (G.user) renderSettingsAccount();
 }
 
 // ══════════════════════════════════════════════════════
