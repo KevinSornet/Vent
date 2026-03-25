@@ -874,40 +874,52 @@ function initGIS() {
 
 function startGoogleAuth() {
   if (!tokenClient) {
-    showToast('Google sign-in loading, try again…', '');
+    showToast('Still loading, try again in a moment…', '');
     initGIS();
+    setTimeout(() => { if (tokenClient) tokenClient.requestAccessToken({}); }, 1200);
     return;
   }
-  // If already have user, try silent refresh first
-  const prompt = G.user ? '' : 'consent';
-  tokenClient.requestAccessToken({ prompt });
+  tokenClient.requestAccessToken({});
 }
 
 async function onTokenReceived(resp) {
-  if (resp.error) { showToast('Auth failed: ' + resp.error, 'error'); return; }
-  G.token = resp.access_token;
-  sessionStorage.setItem('vent_token', G.token);
-  localStorage.setItem('vent_token', G.token);
-
-  // Get user info (or reuse cached)
-  if (!G.user) {
-    try {
-      const r = await gFetch('https://www.googleapis.com/oauth2/v2/userinfo');
-      G.user = { name: r.name, email: r.email, picture: r.picture, initials: r.name?.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase() };
-      localStorage.setItem('vent_user', JSON.stringify(G.user));
-    } catch(e) {}
+  if (resp.error) {
+    showToast('Sign-in failed: ' + resp.error, 'error');
+    return;
   }
 
-  // Always refresh UI
-  updateTopbar();
+  G.token = resp.access_token;
+  localStorage.setItem('vent_token', G.token);
+
+  // Always fetch fresh user info
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { 'Authorization': 'Bearer ' + G.token }
+    });
+    if (!r.ok) throw new Error('userinfo ' + r.status);
+    const data = await r.json();
+    G.user = {
+      name: data.name || '',
+      email: data.email || '',
+      picture: data.picture || '',
+      initials: (data.name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase()
+    };
+    localStorage.setItem('vent_user', JSON.stringify(G.user));
+  } catch(e) {
+    // If userinfo fails, create a minimal user object so UI still updates
+    if (!G.user) G.user = { name: 'Google User', email: '', picture: '', initials: 'G' };
+  }
+
+  // Update all UI immediately
   setStatus('synced', 'Signed in');
   renderSettingsAccount();
+  renderSettingsSheets();
 
   // Create or find sheet
   await ensureSheet();
   renderSettingsSheets();
 
-  // Initial full sync
+  // Full sync
   await syncAll();
   showToast('Signed in & synced ✓', 'success');
 }
@@ -1189,6 +1201,7 @@ function switchView(n, btn) {
   (btn || document.getElementById('nav-'+n)).classList.add('active');
   document.querySelector('.scroll-area').scrollTop = 0;
   renderHMs();
+  if (n === 'settings') { renderSettingsAccount(); renderSettingsSheets(); }
 }
 
 // ══════════════════════════════════════════════════════
