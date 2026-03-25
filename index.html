@@ -844,7 +844,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSlider(); initEmojis(); loadJDate();
   renderEntries(); renderHabits(); renderHMs(); updateStats();
   updateTopbar();
-  setStatus(G.token ? 'synced' : '', G.token ? 'Signed in' : 'Not signed in');
+  setStatus(G.token ? 'synced' : (G.user ? 'synced' : ''), G.user ? 'Signed in' : 'Not signed in');
   renderSettingsAccount();
   renderSettingsSheets();
 
@@ -1060,9 +1060,8 @@ async function syncAll() {
       G.token = null;
       sessionStorage.removeItem('vent_token');
       localStorage.removeItem('vent_token');
-      setStatus('error', 'Session expired — sign in again');
-      updateTopbar();
-      renderSettingsAccount();
+      setStatus('error', 'Re-auth needed');
+      renderSettingsAccount(); // shows re-authorize banner, keeps user chip visible
     }
   }
   isSyncing = false;
@@ -1078,7 +1077,7 @@ function updateTopbar() {
   const topAvatar = document.getElementById('topAvatar');
   const topName = document.getElementById('topName');
 
-  if (G.user && G.token) {
+  if (G.user) {
     signInBtn.style.display = 'none';
     userChip.style.display = 'flex';
     signOutBtn.style.display = '';
@@ -1102,7 +1101,8 @@ function setStatus(state, label) {
 
 function renderSettingsAccount() {
   const body = document.getElementById('accountBody');
-  if (G.user && G.token) {
+  if (G.user) {
+    const tokenOk = !!G.token;
     body.innerHTML = `
       <div class="google-account-card">
         <div class="ga-left">
@@ -1114,7 +1114,13 @@ function renderSettingsAccount() {
         </div>
         <button class="btn-ghost" onclick="signOut()">Sign out</button>
       </div>
-      <p style="font-size:0.78rem;color:var(--ink-muted);line-height:1.6">Your journal data syncs automatically to a private Google Sheet in your Drive after every action.</p>`;
+      ${tokenOk
+        ? `<p style="font-size:0.78rem;color:var(--ink-muted);line-height:1.6">Your journal data syncs automatically to a private Google Sheet in your Drive after every action.</p>`
+        : `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#FEF9C3;border:1px solid #FDE047;margin-top:4px">
+            <span style="font-size:0.78rem;color:#854D0E;flex:1">Session expired. Re-authorize to resume syncing.</span>
+            <button class="btn-primary" onclick="startGoogleAuth()" style="padding:6px 14px;font-size:0.75rem">Re-authorize</button>
+           </div>`
+      }`;
   } else {
     body.innerHTML = `
       <div class="connect-prompt" style="padding:24px 0">
@@ -1147,7 +1153,7 @@ function renderSettingsSheets() {
         </button>
         <button class="btn-ghost" onclick="forgetSheet()">Unlink sheet</button>
       </div>`;
-  } else if (G.token) {
+  } else if (G.user) {
     body.innerHTML = `<p style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px">No sheet linked yet. One will be created automatically in your Google Drive.</p>
       <button class="btn-primary" onclick="ensureSheet().then(()=>renderSettingsSheets())">
         Create "Vent Journal" Sheet
