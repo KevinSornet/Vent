@@ -227,11 +227,30 @@ body::before {
 /* ══ JOURNAL ══ */
 .journal-layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; }
 @media(max-width:680px){ .journal-layout { grid-template-columns: 1fr; } }
+/* ══ CHECKIN ══ */
 .mood-section { padding: 16px 18px; border-bottom: 1px solid var(--border); }
-.section-label { font-size: 0.66rem; color: var(--ink-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+.checkin-block { display: flex; flex-direction: column; gap: 6px; }
+.checkin-label { display: flex; flex-direction: column; gap: 1px; }
+.checkin-title { font-size: 0.78rem; font-weight: 500; color: var(--ink-soft); }
+.checkin-hint  { font-size: 0.65rem; color: var(--ink-muted); }
+.slider-row { display: flex; align-items: center; gap: 10px; }
+.slider-row .mood-track { flex: 1; }
+.slider-val {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.4rem; font-weight: 600; width: 28px;
+  text-align: center; flex-shrink: 0; transition: color 0.3s;
+}
+.cope-input {
+  width: 100%; min-height: 72px; border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; font-family: 'DM Sans', sans-serif;
+  font-size: 0.84rem; line-height: 1.6; color: var(--ink-soft);
+  background: var(--off-white); outline: none; resize: none; transition: border-color 0.2s;
+}
+.cope-input:focus { border-color: var(--purple-mid); background: white; }
+.cope-input::placeholder { color: var(--ink-muted); }
 .mood-track {
   width: 100%; height: 6px; border-radius: 3px;
-  background: linear-gradient(to right, #FDA7A7, #FDCF6B, #78E2A0, #9B7BEA);
+  background: linear-gradient(to right, #22C55E, #FDE047, #EF4444);
   position: relative; cursor: pointer; margin-bottom: 5px;
 }
 .mood-thumb {
@@ -527,16 +546,15 @@ body::before {
       <div class="hm-sub" id="sub-mood-ov">Daily mood score (1–10) · hover for details</div>
       <div id="hm-mood-ov"></div>
       <div class="hm-legend">
-        <span>😔</span>
+        <span>😄 0</span>
         <div style="display:flex;gap:2px">
-          <div class="hm-lc" style="background:#EF4444"></div>
-          <div class="hm-lc" style="background:#FBBF24"></div>
-          <div class="hm-lc" style="background:#FDE047"></div>
-          <div class="hm-lc" style="background:#4ADE80"></div>
-          <div class="hm-lc" style="background:#22C55E"></div>
           <div class="hm-lc" style="background:#15803D"></div>
+          <div class="hm-lc" style="background:#4ADE80"></div>
+          <div class="hm-lc" style="background:#FDE047"></div>
+          <div class="hm-lc" style="background:#F97316"></div>
+          <div class="hm-lc" style="background:#DC2626"></div>
         </div>
-        <span>😄</span>
+        <span>10 💔</span>
       </div>
     </div>
     <div class="heatmap-wrap">
@@ -574,10 +592,50 @@ body::before {
     <div class="journal-layout">
       <div class="card">
         <div class="mood-section">
-          <div class="section-label">How are you feeling?</div>
-          <div class="mood-track" id="moodTrack"><div class="mood-thumb" id="moodThumb"></div></div>
-          <div class="mood-markers"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
-          <div class="mood-readout"><span id="moodEmoji">😐</span> <span id="moodScore">5</span></div>
+          <!-- MOOD -->
+          <div class="checkin-block">
+            <div class="checkin-label">
+              <span class="checkin-title">Mood</span>
+              <span class="checkin-hint">0 = feeling great · 10 = feeling very low</span>
+            </div>
+            <div class="slider-row">
+              <div class="mood-track" id="moodTrack"><div class="mood-thumb" id="moodThumb"></div></div>
+              <div class="slider-val" id="moodScore" style="color:#15803D">0</div>
+            </div>
+            <div class="mood-markers"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
+          </div>
+
+          <!-- URGES -->
+          <div class="checkin-block" style="margin-top:14px">
+            <div class="checkin-label">
+              <span class="checkin-title">Urges</span>
+              <span class="checkin-hint">0 = none · 10 = overwhelming</span>
+            </div>
+            <div class="slider-row">
+              <div class="mood-track" id="urgeTrack" style="background:linear-gradient(to right,#22C55E,#FDE047,#EF4444)"><div class="mood-thumb" id="urgeThumb" style="border-color:#15803D;left:0%"></div></div>
+              <div class="slider-val" id="urgeScore" style="color:#15803D">0</div>
+            </div>
+            <div class="mood-markers"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
+          </div>
+
+          <!-- CRISIS BANNER — shown when urge >= 7 -->
+          <div id="crisisBanner" style="display:none;margin-top:12px;padding:12px 14px;border-radius:10px;background:#FEF2F2;border:1px solid #FECACA">
+            <div style="font-size:0.8rem;font-weight:500;color:#991B1B;margin-bottom:4px">You're not alone 💙</div>
+            <div style="font-size:0.75rem;color:#7F1D1D;line-height:1.5">If you're in crisis, please reach out. You deserve support.</div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <a href="tel:988" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:#DC2626;color:white;border-radius:8px;font-size:0.75rem;font-weight:500;text-decoration:none">📞 Call/Text 988</a>
+              <a href="https://www.crisistextline.org/" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:white;color:#991B1B;border:1px solid #FECACA;border-radius:8px;font-size:0.75rem;text-decoration:none">💬 Crisis Text Line</a>
+            </div>
+          </div>
+
+          <!-- COPING -->
+          <div class="checkin-block" style="margin-top:14px">
+            <div class="checkin-label">
+              <span class="checkin-title">What did you do to cope?</span>
+              <span class="checkin-hint">Write anything — big or small</span>
+            </div>
+            <textarea id="copeText" class="cope-input" placeholder="e.g. went for a walk, called a friend, listened to music, took deep breaths…"></textarea>
+          </div>
         </div>
         <div class="editor-area">
           <input class="entry-title" id="entryTitle" placeholder="Give this entry a title…">
@@ -602,29 +660,50 @@ body::before {
   <div class="view" id="view-mood">
     <div class="page-header">
       <h2>Mood <em>Tracker</em></h2>
-      <p>Your emotional landscape over time</p>
+      <p>Your daily emotional landscape — lower is better</p>
     </div>
     <div class="heatmap-wrap">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-        <div class="hm-title">Yearly mood heatmap</div>
+        <div class="hm-title">Mood heatmap</div>
         <div class="hm-toggle" id="toggle-mood-full">
           <button class="hm-tog active" onclick="setHMView('mood-full','year',this)">Year</button>
           <button class="hm-tog" onclick="setHMView('mood-full','month',this)">Month</button>
         </div>
       </div>
-      <div class="hm-sub" id="sub-mood-full">Each square is one day · color = mood score 1–10</div>
+      <div class="hm-sub" id="sub-mood-full">0 = great · 10 = very low · greener = better</div>
       <div id="hm-mood-full"></div>
       <div class="hm-legend">
-        <span>😔 Low</span>
+        <span>😄 0</span>
         <div style="display:flex;gap:2px">
-          <div class="hm-lc" style="background:#EF4444"></div>
-          <div class="hm-lc" style="background:#FBBF24"></div>
-          <div class="hm-lc" style="background:#FDE047"></div>
-          <div class="hm-lc" style="background:#4ADE80"></div>
-          <div class="hm-lc" style="background:#22C55E"></div>
           <div class="hm-lc" style="background:#15803D"></div>
+          <div class="hm-lc" style="background:#4ADE80"></div>
+          <div class="hm-lc" style="background:#FDE047"></div>
+          <div class="hm-lc" style="background:#F97316"></div>
+          <div class="hm-lc" style="background:#DC2626"></div>
         </div>
-        <span>High 😄</span>
+        <span>10 💔</span>
+      </div>
+    </div>
+    <div class="heatmap-wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="hm-title">Urge heatmap</div>
+        <div class="hm-toggle" id="toggle-urge-full">
+          <button class="hm-tog active" onclick="setHMView('urge-full','year',this)">Year</button>
+          <button class="hm-tog" onclick="setHMView('urge-full','month',this)">Month</button>
+        </div>
+      </div>
+      <div class="hm-sub" id="sub-urge-full">0 = no urges · 10 = overwhelming · greener = safer</div>
+      <div id="hm-urge-full"></div>
+      <div class="hm-legend">
+        <span>😌 0</span>
+        <div style="display:flex;gap:2px">
+          <div class="hm-lc" style="background:#15803D"></div>
+          <div class="hm-lc" style="background:#86EFAC"></div>
+          <div class="hm-lc" style="background:#FCD34D"></div>
+          <div class="hm-lc" style="background:#F97316"></div>
+          <div class="hm-lc" style="background:#991B1B"></div>
+        </div>
+        <span>10 ⚡</span>
       </div>
     </div>
   </div>
@@ -779,7 +858,7 @@ body::before {
 // Authorized JS origins: add the URL where you host this file
 // ══════════════════════════════════════════════════════
 const CLIENT_ID = '800597858691-6bgsp4oej61rhici4d4u1rcibhe9jn6c.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file email profile';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly email profile';
 
 // ══════════════════════════════════════════════════════
 // STATE
@@ -793,26 +872,40 @@ let G = {
 let S = {
   entries:    JSON.parse(localStorage.getItem('vent_entries')  || '{}'),
   moods:      JSON.parse(localStorage.getItem('vent_moods')    || '{}'),
+  urges:      JSON.parse(localStorage.getItem('vent_urges')    || '{}'),
+  copes:      JSON.parse(localStorage.getItem('vent_copes')    || '{}'),
   habits:     JSON.parse(localStorage.getItem('vent_habits')   || '[]'),
   logs:       JSON.parse(localStorage.getItem('vent_logs')     || '{}'),
   jDate:      new Date()
 };
-let mood = 5, selEmoji = '✨';
+let mood = 5, urge = 0, selEmoji = '✨';
 let syncDebounce = null;
 let isSyncing = false;
 
 const EMOJIS = ['📖','🎵','🏃','🧘','💪','🎨','🌿','☀️','🍎','💤','✍️','🎯','🧹','💧','🤸','📚','🐾','🧠','🌙','❤️'];
 const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// Mood → color mapping: red (1) → orange → yellow → lime → green (10)
+// Mood → color: 0=green(great), 10=red(bad) — inverted scale
 function moodColor(m) {
-  if (!m) return '#EDE9E3';
+  if (m === null || m === undefined || m === '') return '#EDE9E3';
+  const n = Number(m);
   const colors = {
-    1:'#EF4444', 2:'#F97316', 3:'#FB923C', 4:'#FBBF24',
-    5:'#FDE047', 6:'#A3E635', 7:'#4ADE80', 8:'#22C55E',
-    9:'#16A34A', 10:'#15803D'
+    0:'#15803D', 1:'#16A34A', 2:'#22C55E', 3:'#4ADE80',
+    4:'#A3E635', 5:'#FDE047', 6:'#FBBF24', 7:'#FB923C',
+    8:'#F97316', 9:'#EF4444', 10:'#DC2626'
   };
-  return colors[m] || '#EDE9E3';
+  return colors[n] ?? '#EDE9E3';
+}
+// Urge → color: 0=calm green, 10=crisis red
+function urgeColor(u) {
+  if (u === null || u === undefined || u === '') return '#EDE9E3';
+  const n = Number(u);
+  const colors = {
+    0:'#15803D', 1:'#16A34A', 2:'#22C55E', 3:'#86EFAC',
+    4:'#FDE68A', 5:'#FCD34D', 6:'#FBBF24', 7:'#F97316',
+    8:'#EF4444', 9:'#DC2626', 10:'#991B1B'
+  };
+  return colors[n] ?? '#EDE9E3';
 }
 function habitColor(pct) {
   if (pct === 0) return '#EDE9E3';
@@ -821,7 +914,10 @@ function habitColor(pct) {
   if (pct <= 99) return 'rgba(155,123,234,0.75)';
   return '#7C4DDB';
 }
-function moodE(m) { return m<=2?'😔':m<=4?'😕':m<=6?'😐':m<=8?'😊':'😄'; }
+function moodE(m) {
+  const n = Number(m);
+  return n<=1?'😄':n<=3?'🙂':n<=5?'😐':n<=7?'😔':n<=9?'😢':'💔';
+}
 
 // ══════════════════════════════════════════════════════
 // INIT
@@ -1015,7 +1111,7 @@ async function ensureSheet() {
 
     // Write headers
     await sheetsUpdate([
-      { range: 'Journal!A1:E1', values: [['Date','Title','Body','Mood','Last Updated']] },
+      { range: 'Journal!A1:G1', values: [['Date','Title','Body','Mood','Urge','Coping','Last Updated']] },
       { range: 'Habits!A1:C1', values: [['Name','Emoji','Added']] },
       { range: 'HabitLogs!A1:B1', values: [['Date','HabitIndex']] },
     ]);
@@ -1059,10 +1155,10 @@ async function syncAll() {
   setStatus('syncing', 'Syncing…');
   try {
     // Build Journal rows
-    const jRows = [['Date','Title','Body','Mood','Last Updated']];
+    const jRows = [['Date','Title','Body','Mood','Urge','Coping','Last Updated']];
     Object.keys(S.entries).sort().forEach(k => {
       const e = S.entries[k];
-      jRows.push([k, e.title||'', e.body||'', S.moods[k]||'', e.saved||'']);
+      jRows.push([k, e.title||'', e.body||'', S.moods[k]??'', S.urges[k]??'', S.copes[k]||'', e.saved||'']);
     });
 
     // Build Habits rows
@@ -1206,18 +1302,14 @@ function renderSettingsSheets() {
         </button>
         <div style="display:flex;align-items:center;gap:10px;color:var(--ink-muted);font-size:0.75rem">
           <div style="flex:1;height:1px;background:var(--border)"></div>
-          or use existing
+          or pick from your Drive
           <div style="flex:1;height:1px;background:var(--border)"></div>
         </div>
-        <div>
-          <label style="display:block;font-size:0.67rem;color:var(--ink-muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:5px">Spreadsheet URL or ID</label>
-          <input id="existingSheetInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/…">
-          <p style="font-size:0.68rem;color:var(--ink-muted);margin-top:5px">Paste the full URL or just the spreadsheet ID from an existing Vent sheet.</p>
-        </div>
-        <button class="btn-outline" onclick="linkExistingSheet()" style="justify-content:center">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          Link existing sheet
+        <button class="btn-outline" onclick="openDrivePicker()" style="justify-content:center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          Browse Google Drive
         </button>
+        <div id="driveBrowser" style="display:none"></div>
       </div>`;
   } else {
     body.innerHTML = `<p style="font-size:0.8rem;color:var(--ink-muted)">Sign in with Google above to enable sheet sync.</p>`;
@@ -1233,39 +1325,71 @@ function forgetSheet() {
   showToast('Sheet unlinked');
 }
 
-async function linkExistingSheet() {
-  const raw = (document.getElementById('existingSheetInput')?.value || '').trim();
-  if (!raw) return showToast('Paste a sheet URL or ID first', 'error');
+async function openDrivePicker() {
+  const browser = document.getElementById('driveBrowser');
+  if (!browser) return;
+  browser.style.display = 'block';
+  browser.innerHTML = `<div style="text-align:center;padding:16px;color:var(--ink-muted);font-size:0.8rem">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:block;margin:0 auto 8px;animation:spin 1s linear infinite"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+    Loading your spreadsheets…
+  </div>`;
 
-  // Extract spreadsheet ID from full URL or use as-is if it looks like an ID
-  let sheetId = raw;
-  const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-  if (match) sheetId = match[1];
-
-  setStatus('syncing', 'Verifying…');
   try {
-    const meta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=spreadsheetId,spreadsheetUrl,sheets.properties.title`);
+    // List all spreadsheets from Drive
+    const res = await gFetch(
+      `https://www.googleapis.com/drive/v3/files?q=mimeType%3D'application%2Fvnd.google-apps.spreadsheet'+and+trashed%3Dfalse&fields=files(id,name,modifiedTime)&orderBy=modifiedTime+desc&pageSize=30`
+    );
+    const files = res.files || [];
+
+    if (!files.length) {
+      browser.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-muted);text-align:center;padding:12px">No spreadsheets found in your Drive.</p>`;
+      return;
+    }
+
+    browser.innerHTML = `
+      <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:260px;overflow-y:auto">
+        <div style="padding:8px 12px;background:var(--off-white);border-bottom:1px solid var(--border);font-size:0.68rem;color:var(--ink-muted);letter-spacing:0.05em;text-transform:uppercase">Your spreadsheets</div>
+        ${files.map(f => `
+          <div onclick="linkDriveFile('${f.id}','${f.name.replace(/'/g,"\\'")}')"
+            style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background 0.15s"
+            onmouseover="this.style.background='var(--purple-lightest)'" onmouseout="this.style.background=''">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple-mid)" stroke-width="1.8" style="flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.82rem;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</div>
+              <div style="font-size:0.68rem;color:var(--ink-muted);margin-top:1px">Modified ${new Date(f.modifiedTime).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>`).join('')}
+      </div>`;
+  } catch(e) {
+    browser.innerHTML = `<p style="font-size:0.78rem;color:#ef4444;padding:10px">Could not load Drive files. Make sure you've granted Drive access.</p>`;
+  }
+}
+
+async function linkDriveFile(fileId, fileName) {
+  setStatus('syncing', 'Linking…');
+  try {
+    const meta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${fileId}?fields=spreadsheetId,spreadsheetUrl,sheets.properties.title`);
     G.sheetId  = meta.spreadsheetId;
     G.sheetUrl = meta.spreadsheetUrl;
     localStorage.setItem('vent_sheet_id',  G.sheetId);
     localStorage.setItem('vent_sheet_url', G.sheetUrl);
 
-    // Ensure the required tabs exist (create missing ones)
-    const existingTitles = (meta.sheets || []).map(s => s.properties.title);
-    const needed = ['Journal','Habits','HabitLogs'];
-    const missing = needed.filter(t => !existingTitles.includes(t));
+    // Ensure required tabs exist
+    const existing = (meta.sheets||[]).map(s=>s.properties.title);
+    const missing  = ['Journal','Habits','HabitLogs'].filter(t=>!existing.includes(t));
     if (missing.length) {
       await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${G.sheetId}:batchUpdate`, {
         method: 'POST',
-        body: JSON.stringify({ requests: missing.map(t => ({ addSheet: { properties: { title: t } } })) })
+        body: JSON.stringify({ requests: missing.map(t=>({ addSheet: { properties: { title: t } } })) })
       });
     }
     renderSettingsSheets();
     await syncAll();
-    showToast('Sheet linked & synced ✓', 'success');
+    showToast(`Linked "${fileName}" & synced ✓`, 'success');
   } catch(e) {
-    setStatus('error', 'Could not link');
-    showToast('Could not access that sheet. Make sure you have edit access.', 'error');
+    setStatus('error', 'Link failed');
+    showToast('Could not link that sheet.', 'error');
   }
 }
 
@@ -1286,24 +1410,53 @@ function switchView(n, btn) {
 // MOOD SLIDER
 // ══════════════════════════════════════════════════════
 function initSlider() {
-  const track = document.getElementById('moodTrack'), thumb = document.getElementById('moodThumb');
+  makeSlider('moodTrack', 'moodThumb', 'moodScore', 0, (val) => {
+    mood = val;
+    document.getElementById('moodScore').style.color = moodColor(val);
+    document.getElementById('moodThumb').style.borderColor = moodColor(val);
+  });
+  makeSlider('urgeTrack', 'urgeThumb', 'urgeScore', 0, (val) => {
+    urge = val;
+    document.getElementById('urgeScore').style.color = urgeColor(val);
+    document.getElementById('urgeThumb').style.borderColor = urgeColor(val);
+    document.getElementById('crisisBanner').style.display = val >= 7 ? '' : 'none';
+  });
+}
+
+function makeSlider(trackId, thumbId, scoreId, initVal, onChange) {
+  const track = document.getElementById(trackId);
+  const thumb = document.getElementById(thumbId);
+  const score = document.getElementById(scoreId);
+  if (!track || !thumb || !score) return;
   let drag = false;
-  thumb.style.left = '44.4%';
-  function upd(x) {
-    const r = track.getBoundingClientRect(), p = Math.max(0, Math.min(1, (x-r.left)/r.width));
-    mood = Math.round(p*9+1);
-    thumb.style.left = ((mood-1)/9*100)+'%';
-    document.getElementById('moodScore').textContent = mood;
-    document.getElementById('moodEmoji').textContent = moodE(mood);
-    thumb.style.borderColor = moodColor(mood);
+  let current = initVal;
+
+  function update(x) {
+    const r = track.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (x - r.left) / r.width));
+    current = Math.round(pct * 10);
+    thumb.style.left = (current / 10 * 100) + '%';
+    score.textContent = current;
+    onChange(current);
   }
-  thumb.addEventListener('mousedown', e=>{drag=true; e.preventDefault();});
-  track.addEventListener('mousedown', e=>{drag=true; upd(e.clientX);});
-  document.addEventListener('mousemove', e=>{if(drag) upd(e.clientX);});
-  document.addEventListener('mouseup', ()=>drag=false);
-  thumb.addEventListener('touchstart', ()=>drag=true, {passive:true});
-  document.addEventListener('touchmove', e=>{if(drag) upd(e.touches[0].clientX);}, {passive:true});
-  document.addEventListener('touchend', ()=>drag=false);
+  function setVal(val) {
+    current = val;
+    thumb.style.left = (val / 10 * 100) + '%';
+    score.textContent = val;
+    onChange(val);
+  }
+  // expose setter
+  track._setVal = setVal;
+
+  thumb.addEventListener('mousedown', e => { drag = true; e.preventDefault(); });
+  track.addEventListener('mousedown', e => { drag = true; update(e.clientX); });
+  document.addEventListener('mousemove', e => { if (drag) update(e.clientX); });
+  document.addEventListener('mouseup', () => drag = false);
+  thumb.addEventListener('touchstart', () => drag = true, { passive: true });
+  document.addEventListener('touchmove', e => { if (drag) update(e.touches[0].clientX); }, { passive: true });
+  document.addEventListener('touchend', () => drag = false);
+
+  setVal(initVal);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1312,19 +1465,25 @@ function initSlider() {
 function dk(d) { return d.toISOString().split('T')[0]; }
 
 function loadJDate() {
-  const k = dk(S.jDate), e = S.entries[k]||{}, m = S.moods[k];
+  const k = dk(S.jDate), e = S.entries[k]||{};
+  const mv = S.moods[k] ?? 0;
+  const uv = S.urges[k] ?? 0;
+  const cv = S.copes[k] || '';
+
   document.getElementById('entryTitle').value = e.title||'';
   document.getElementById('entryBody').value = e.body||'';
   document.getElementById('journal-date').textContent = fmtL(S.jDate);
   const w = (e.body||'').trim().split(/\s+/).filter(Boolean).length;
   document.getElementById('wordCount').textContent = w+(w===1?' word':' words');
-  const mv = m||5;
-  mood = mv;
-  document.getElementById('moodScore').textContent = mv;
-  document.getElementById('moodEmoji').textContent = moodE(mv);
-  const thumb = document.getElementById('moodThumb');
-  thumb.style.left = ((mv-1)/9*100)+'%';
-  thumb.style.borderColor = moodColor(mv);
+  document.getElementById('copeText').value = cv;
+
+  // Set sliders
+  mood = mv; urge = uv;
+  const mTrack = document.getElementById('moodTrack');
+  const uTrack = document.getElementById('urgeTrack');
+  if (mTrack?._setVal) mTrack._setVal(mv);
+  if (uTrack?._setVal) uTrack._setVal(uv);
+  document.getElementById('crisisBanner').style.display = uv >= 7 ? '' : 'none';
 }
 
 function changeDate(d) { S.jDate = new Date(S.jDate.getTime()+d*86400000); loadJDate(); }
@@ -1334,8 +1493,11 @@ function saveEntry() {
   const k = dk(S.jDate);
   const title = document.getElementById('entryTitle').value.trim();
   const body  = document.getElementById('entryBody').value.trim();
+  const cope  = document.getElementById('copeText').value.trim();
   S.entries[k] = { title, body, date: k, saved: new Date().toISOString() };
   S.moods[k] = mood;
+  S.urges[k] = urge;
+  if (cope) S.copes[k] = cope; else delete S.copes[k];
   save(); renderEntries(); updateStats(); renderHMs();
   showToast('Entry saved ✓', 'success');
   triggerSync();
@@ -1350,12 +1512,15 @@ function renderEntries() {
     return;
   }
   list.innerHTML = keys.map(k => {
-    const e = S.entries[k], m = S.moods[k], d = new Date(k+'T12:00:00');
+    const e = S.entries[k], m = S.moods[k], u = S.urges[k], d = new Date(k+'T12:00:00');
     return `<div class="entry-item" onclick="openEntry('${k}')">
       <div class="entry-item-date">${fmtS(d)}</div>
       <div class="entry-item-title">${e.title||'Untitled'}</div>
       <div class="entry-item-preview">${e.body||''}</div>
-      ${m ? `<div class="entry-mood-tag" style="color:${moodColor(m)};background:${moodColor(m)}22">${moodE(m)} ${m}/10</div>` : ''}
+      <div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap">
+        ${m !== undefined && m !== null ? `<div style="font-size:0.64rem;padding:2px 7px;border-radius:20px;background:${moodColor(m)}22;color:${moodColor(m)};font-weight:500">${moodE(m)} Mood ${m}</div>` : ''}
+        ${u !== undefined && u !== null && u > 0 ? `<div style="font-size:0.64rem;padding:2px 7px;border-radius:20px;background:${urgeColor(u)}22;color:${urgeColor(u)};font-weight:500">⚡ Urge ${u}</div>` : ''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -1436,19 +1601,9 @@ function confirmHabit() {
 // ══════════════════════════════════════════════════════
 // HEATMAPS — month/year toggle, inline background-color
 // ══════════════════════════════════════════════════════
-const hmView = { 'mood-ov':'year', 'habit-ov':'year', 'mood-full':'year', 'habit-full':'year' };
-const hmMonth = {
-  'mood-ov': new Date().getMonth(),
-  'habit-ov': new Date().getMonth(),
-  'mood-full': new Date().getMonth(),
-  'habit-full': new Date().getMonth()
-};
-const hmYear = {
-  'mood-ov': new Date().getFullYear(),
-  'habit-ov': new Date().getFullYear(),
-  'mood-full': new Date().getFullYear(),
-  'habit-full': new Date().getFullYear()
-};
+const hmView  = { 'mood-ov':'year','habit-ov':'year','mood-full':'year','habit-full':'year','urge-full':'year' };
+const hmMonth = { 'mood-ov':new Date().getMonth(),'habit-ov':new Date().getMonth(),'mood-full':new Date().getMonth(),'habit-full':new Date().getMonth(),'urge-full':new Date().getMonth() };
+const hmYear  = { 'mood-ov':new Date().getFullYear(),'habit-ov':new Date().getFullYear(),'mood-full':new Date().getFullYear(),'habit-full':new Date().getFullYear(),'urge-full':new Date().getFullYear() };
 
 function setHMView(id, view, btn) {
   hmView[id] = view;
@@ -1456,6 +1611,7 @@ function setHMView(id, view, btn) {
   tog.querySelectorAll('.hm-tog').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   if (id.startsWith('mood')) renderMoodHM('hm-'+id);
+  else if (id.startsWith('urge')) renderUrgeHM('hm-'+id);
   else renderHabitHM('hm-'+id);
 }
 
@@ -1465,12 +1621,14 @@ function changeHMMonth(id, delta) {
   if (m < 0)  { m = 11; y--; }
   hmMonth[id] = m; hmYear[id] = y;
   if (id.startsWith('mood')) renderMoodHM('hm-'+id);
+  else if (id.startsWith('urge')) renderUrgeHM('hm-'+id);
   else renderHabitHM('hm-'+id);
 }
 
 function renderHMs() {
   renderMoodHM('hm-mood-ov');
   renderMoodHM('hm-mood-full');
+  renderUrgeHM('hm-urge-full');
   renderHabitHM('hm-habit-ov');
   renderHabitHM('hm-habit-full');
 }
@@ -1507,8 +1665,8 @@ function buildMonthWeeks(year, month) {
 const DAYS_SHORT = ['S','M','T','W','T','F','S'];
 
 function hmDayLabels() {
-  return DAYS_SHORT.map(l =>
-    `<div style="font-size:0.55rem;color:var(--ink-muted);height:12px;line-height:12px;text-align:right;padding-right:3px">${l}</div>`
+  return ['S','M','T','W','T','F','S'].map(l =>
+    `<div style="font-size:0.55rem;color:var(--ink-muted);height:18px;line-height:18px;text-align:right;padding-right:4px">${l}</div>`
   ).join('');
 }
 
@@ -1529,15 +1687,17 @@ function renderMoodHM(id) {
     const gridHtml = weeks.map(w => {
       const cells = w.map(day => {
         const inMonth = day.getMonth() === month;
-        const k = dk(day), m = S.moods[k], fut = day > today;
-        const bg = (!inMonth || fut) ? '#F4F2EF' : moodColor(m);
+        const k = dk(day), fut = day > today;
+        const mv = S.moods[k] ?? null;
+        const bg = (!inMonth || fut) ? '#F4F2EF' : moodColor(mv ?? '');
         const op = !inMonth ? '0.2' : '1';
         const dayN = day.getDate();
-        // Text color: dark on light backgrounds, white on dark greens
-        const textColor = (!inMonth || fut || !m) ? 'var(--ink-muted)' : (m >= 8 ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)');
-        return `<div class="hm-cell-lg" style="background:${bg};opacity:${op}" title="${inMonth && m ? `${k}: mood ${m}/10 ${moodE(m)}` : k}">
-          <span style="font-size:0.6rem;color:${textColor};font-weight:500;line-height:1">${inMonth ? dayN : ''}</span>
-          ${inMonth && m ? `<span style="font-size:0.72rem;font-weight:700;color:${textColor};line-height:1">${m}</span>` : ''}
+        // 0=green(good), 10=red(bad) — white text on high/red values
+        const hasVal = inMonth && mv !== null;
+        const textColor = (!hasVal || fut) ? 'var(--ink-muted)' : (mv >= 7 ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.6)');
+        return `<div class="hm-cell-lg" style="background:${bg};opacity:${op}" title="${hasVal ? `${k}: mood ${mv}/10 ${moodE(mv)}` : k}">
+          <span style="font-size:0.6rem;color:${inMonth&&!fut?textColor:'var(--ink-muted)'};font-weight:500;line-height:1">${inMonth ? dayN : ''}</span>
+          ${hasVal ? `<span style="font-size:0.72rem;font-weight:700;color:${textColor};line-height:1">${mv}</span>` : ''}
         </div>`;
       }).join('');
       return `<div class="hm-week-lg">${cells}</div>`;
@@ -1558,31 +1718,35 @@ function renderMoodHM(id) {
   } else {
     // Year view
     const subEl = document.getElementById('sub-'+shortId);
-    if (subEl) subEl.textContent = 'Daily mood score (1–10) · hover for details';
+    if (subEl) subEl.textContent = '0 = great · 10 = very low · greener = better';
     const weeks = buildYearWeeks();
     let monthHtml = '', lastM = -1, lastWi = 0;
     weeks.forEach((w, wi) => {
       const m = w[0].getMonth();
       if (m !== lastM) {
-        monthHtml += `<span style="width:${(wi-lastWi)*14}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
+        monthHtml += `<span style="width:${(wi-lastWi)*20}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
         lastM = m; lastWi = wi;
       }
     });
     const gridHtml = weeks.map(w => {
       const cells = w.map(day => {
-        const k = dk(day), m = S.moods[k], fut = day > today;
-        const bg = fut ? '#F4F2EF' : moodColor(m);
+        const k = dk(day), fut = day > today;
+        const mv = S.moods[k] ?? null;
+        const bg = fut ? '#F4F2EF' : moodColor(mv ?? '');
         const op = fut ? '0.2' : '1';
-        const tip = m ? `${k}: ${m}/10 ${moodE(m)}` : k;
-        return `<div class="hm-cell" style="background:${bg};opacity:${op}" data-tip="${tip}"></div>`;
+        const tip = mv !== null ? `${k}: mood ${mv}/10 ${moodE(mv)}` : k;
+        const textColor = (mv !== null && mv >= 7) ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)';
+        return `<div class="hm-cell" style="background:${bg};opacity:${op};width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;" data-tip="${tip}">
+          ${mv !== null ? `<span style="font-size:0.55rem;font-weight:700;color:${textColor};line-height:1;pointer-events:none">${mv}</span>` : ''}
+        </div>`;
       }).join('');
-      return `<div class="hm-week">${cells}</div>`;
+      return `<div class="hm-week" style="gap:2px">${cells}</div>`;
     }).join('');
     el.innerHTML = `
-      <div style="display:flex;padding-left:26px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
-      <div style="display:flex;gap:3px">
-        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${hmDayLabels()}</div>
-        <div class="hm-grid">${gridHtml}</div>
+      <div style="display:flex;padding-left:30px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
+      <div style="display:flex;gap:2px">
+        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:28px;flex-shrink:0">${hmDayLabels()}</div>
+        <div class="hm-grid" style="gap:2px">${gridHtml}</div>
       </div>`;
   }
 }
@@ -1640,7 +1804,7 @@ function renderHabitHM(id) {
     weeks.forEach((w, wi) => {
       const m = w[0].getMonth();
       if (m !== lastM) {
-        monthHtml += `<span style="width:${(wi-lastWi)*14}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
+        monthHtml += `<span style="width:${(wi-lastWi)*20}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
         lastM = m; lastWi = wi;
       }
     });
@@ -1652,15 +1816,95 @@ function renderHabitHM(id) {
         const bg = fut ? '#F4F2EF' : habitColor(pct);
         const op = fut ? '0.2' : '1';
         const tip = `${k}: ${pct}% (${done}/${S.habits.length||0})`;
-        return `<div class="hm-cell" style="background:${bg};opacity:${op}" data-tip="${tip}"></div>`;
+        const textColor = pct >= 75 ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.5)';
+        return `<div class="hm-cell" style="background:${bg};opacity:${op};width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;" data-tip="${tip}">
+          ${done > 0 && !fut ? `<span style="font-size:0.5rem;font-weight:700;color:${textColor};line-height:1;pointer-events:none">${pct}%</span>` : ''}
+        </div>`;
       }).join('');
-      return `<div class="hm-week">${cells}</div>`;
+      return `<div class="hm-week" style="gap:2px">${cells}</div>`;
     }).join('');
     el.innerHTML = `
-      <div style="display:flex;padding-left:26px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
-      <div style="display:flex;gap:3px">
-        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:22px;flex-shrink:0">${hmDayLabels()}</div>
-        <div class="hm-grid">${gridHtml}</div>
+      <div style="display:flex;padding-left:30px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
+      <div style="display:flex;gap:2px">
+        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:28px;flex-shrink:0">${hmDayLabels()}</div>
+        <div class="hm-grid" style="gap:2px">${gridHtml}</div>
+      </div>`;
+  }
+}
+
+function renderUrgeHM(id) {
+  const shortId = id.replace('hm-', '');
+  const el = document.getElementById(id); if (!el) return;
+  const today = new Date();
+  const isMonth = hmView[shortId] === 'month';
+
+  if (isMonth) {
+    const year = hmYear[shortId], month = hmMonth[shortId];
+    const weeks = buildMonthWeeks(year, month);
+    const label = new Date(year, month, 1).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+    const subEl = document.getElementById('sub-'+shortId);
+    if (subEl) subEl.textContent = label;
+
+    const gridHtml = weeks.map(w => {
+      const cells = w.map(day => {
+        const inMonth = day.getMonth() === month;
+        const k = dk(day), u = S.urges[k], fut = day > today;
+        const uv = u ?? null;
+        const bg = (!inMonth || fut) ? '#F4F2EF' : urgeColor(uv ?? '');
+        const op = !inMonth ? '0.2' : '1';
+        const dayN = day.getDate();
+        const textColor = (uv !== null && uv >= 7) ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)';
+        return `<div class="hm-cell-lg" style="background:${bg};opacity:${op}" title="${inMonth && uv !== null ? `${k}: urge ${uv}/10` : k}">
+          <span style="font-size:0.6rem;color:${(!inMonth||fut||uv===null)?'var(--ink-muted)':textColor};font-weight:500;line-height:1">${inMonth ? dayN : ''}</span>
+          ${inMonth && uv !== null ? `<span style="font-size:0.72rem;font-weight:700;color:${textColor};line-height:1">${uv}</span>` : ''}
+        </div>`;
+      }).join('');
+      return `<div class="hm-week-lg">${cells}</div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="hm-month-nav">
+        <button class="arrow-btn" onclick="changeHMMonth('${shortId}',-1)" style="width:22px;height:22px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <span class="month-label">${label}</span>
+        <button class="arrow-btn" onclick="changeHMMonth('${shortId}',1)" style="width:22px;height:22px" ${new Date(year,month+1,1)>today?'disabled style="opacity:0.3;cursor:default"':''}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div style="display:flex;gap:4px">
+        <div class="hm-day-labels-lg">
+          ${['S','M','T','W','T','F','S'].map(l=>`<div class="hm-day-lbl-lg">${l}</div>`).join('')}
+        </div>
+        <div class="hm-grid-lg">${gridHtml}</div>
+      </div>`;
+  } else {
+    const subEl = document.getElementById('sub-'+shortId);
+    if (subEl) subEl.textContent = '0 = no urges · 10 = overwhelming · greener = safer';
+    const weeks = buildYearWeeks();
+    let monthHtml = '', lastM = -1, lastWi = 0;
+    weeks.forEach((w, wi) => {
+      const m = w[0].getMonth();
+      if (m !== lastM) {
+        monthHtml += `<span style="width:${(wi-lastWi)*20}px;flex-shrink:0"></span><span style="font-size:0.58rem;color:var(--ink-muted);white-space:nowrap">${MO[m]}</span>`;
+        lastM = m; lastWi = wi;
+      }
+    });
+    const gridHtml = weeks.map(w => {
+      const cells = w.map(day => {
+        const k = dk(day), fut = day > today;
+        const uv = S.urges[k] ?? null;
+        const bg = fut ? '#F4F2EF' : urgeColor(uv ?? '');
+        const op = fut ? '0.2' : '1';
+        const tip = uv !== null ? `${k}: urge ${uv}/10` : k;
+        const textColor = (uv !== null && uv >= 7) ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.5)';
+        return `<div class="hm-cell" style="background:${bg};opacity:${op};width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;" data-tip="${tip}">
+          ${uv !== null ? `<span style="font-size:0.55rem;font-weight:700;color:${textColor};line-height:1;pointer-events:none">${uv}</span>` : ''}
+        </div>`;
+      }).join('');
+      return `<div class="hm-week" style="gap:2px">${cells}</div>`;
+    }).join('');
+    el.innerHTML = `
+      <div style="display:flex;padding-left:30px;margin-bottom:3px;overflow:hidden">${monthHtml}</div>
+      <div style="display:flex;gap:2px">
+        <div style="display:flex;flex-direction:column;gap:2px;padding-top:1px;width:28px;flex-shrink:0">${hmDayLabels()}</div>
+        <div class="hm-grid" style="gap:2px">${gridHtml}</div>
       </div>`;
   }
 }
@@ -1675,7 +1919,7 @@ function updateStats() {
   while (S.entries[dk(d)] || S.moods[dk(d)]) { streak++; d.setDate(d.getDate()-1); }
   document.getElementById('s-streak').textContent = streak;
   const vals=[];
-  for(let i=0;i<30;i++){const dd=new Date();dd.setDate(dd.getDate()-i);const m=S.moods[dk(dd)];if(m)vals.push(m);}
+  for(let i=0;i<30;i++){const dd=new Date();dd.setDate(dd.getDate()-i);const m=S.moods[dk(dd)];if(m!==undefined&&m!==null)vals.push(m);}
   document.getElementById('s-mood').textContent = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '—';
 }
 
@@ -1685,18 +1929,20 @@ function updateStats() {
 function save() {
   localStorage.setItem('vent_entries', JSON.stringify(S.entries));
   localStorage.setItem('vent_moods',   JSON.stringify(S.moods));
+  localStorage.setItem('vent_urges',   JSON.stringify(S.urges));
+  localStorage.setItem('vent_copes',   JSON.stringify(S.copes));
   localStorage.setItem('vent_habits',  JSON.stringify(S.habits));
   localStorage.setItem('vent_logs',    JSON.stringify(S.logs));
 }
 function exportData() {
   const a = document.createElement('a');
-  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify({entries:S.entries,moods:S.moods,habits:S.habits,habitLogs:S.logs},null,2));
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify({entries:S.entries,moods:S.moods,urges:S.urges,copes:S.copes,habits:S.habits,habitLogs:S.logs},null,2));
   a.download = 'vent-backup-' + dk(new Date()) + '.json';
   a.click(); showToast('Export downloaded','success');
 }
 function clearEntries() {
-  if (!confirm('Delete ALL journal entries and mood data?')) return;
-  S.entries={}; S.moods={};
+  if (!confirm('Delete ALL journal entries, mood, and urge data?')) return;
+  S.entries={}; S.moods={}; S.urges={}; S.copes={};
   save(); renderEntries(); updateStats(); renderHMs(); loadJDate();
   showToast('Entries cleared'); triggerSync();
 }
